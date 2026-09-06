@@ -1,0 +1,29 @@
+services:
+  api:
+    mem_limit: 256m
+
+  web:
+    ports: !override
+      - "127.0.0.1:8080:80"
+    mem_limit: 256m
+    volumes:
+      - ./aasa/well-known:/usr/share/nginx/html/.well-known:ro
+      - ./aasa/well-known/apple-app-site-association:/usr/share/nginx/html/apple-app-site-association:ro
+      - ./aasa/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      # nginx.conf.template: Cloudflare's real-client header. Compose must
+      # pass the literal $http_cf_connecting_ip through to the container.
+      CF_CONNECTING_IP: $$http_cf_connecting_ip
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    network_mode: host
+    depends_on:
+      - web
+    mem_limit: 64m
+    profiles:
+      - tunnel
